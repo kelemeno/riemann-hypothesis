@@ -226,16 +226,6 @@ theorem adicInt_isUnit_of_not_mem (r : R) (hr : r ∉ v.asIdeal) : IsUnit (algeb
   first
   | exact v.intValuation_eq_one_iff.mpr hr
 
-theorem adicInt_exists_norm [Finite (R ⧸ v.asIdeal)] (T N : ℤ)
-    (hD : ((T ^ 2 - 4 * N : ℤ) : R) ∉ v.asIdeal) :
-    ∃ s t : Ov, s ^ 2 + (T : Ov) * s * t + (N : Ov) * t ^ 2 = -1 := by
-  have := adicInt_residue_finite (K := K) v
-  have hDu : IsUnit ((T : Ov) ^ 2 - 4 * (N : Ov)) := by
-    have e : ((T : Ov) ^ 2 - 4 * (N : Ov)) = algebraMap R Ov ((T ^ 2 - 4 * N : ℤ) : R) := by
-      rw [map_intCast]; push_cast; ring
-    rw [e]; exact adicInt_isUnit_of_not_mem v _ hD
-  exact Formalism.HermitianLatticesTheory.unimodUnramUnique_quad (T : Ov) (N : Ov) (-1) hDu isUnit_one.neg
-
 end Residue
 
 section Global
@@ -354,56 +344,6 @@ theorem adel_not_both (v : HeightOneSpectrum (𝓞 H.F)) :
     exact v.asIdeal.add_mem (v.asIdeal.mul_mem_left a hdv) (v.asIdeal.mul_mem_left b hqv)
   exact v.isPrime.ne_top ((Ideal.eq_top_iff_one _).mpr h1)
 
-theorem adel_local (v : HeightOneSpectrum (𝓞 H.F)) :
-    ∃ S T : v.adicCompletion H.F,
-      (((H.d : ℤ) : 𝓞 H.F) ∉ v.asIdeal →
-        S ∈ v.adicCompletionIntegers H.F ∧ T ∈ v.adicCompletionIntegers H.F) ∧
-      S * S + S * T + ((adelNd H : ℤ) : v.adicCompletion H.F) * (T * T) = -1 := by
-  haveI : Finite (𝓞 H.F ⧸ v.asIdeal) := by
-    first
-    | exact Ideal.finiteQuotientOfFreeOfNeBot v.asIdeal v.ne_bot
-  have hI3 : 2 * algebraMap H.F (v.adicCompletion H.F) (adelAlpha H)
-      + algebraMap H.F (v.adicCompletion H.F) (adelBeta H) = 1 := by
-    have h := congrArg (algebraMap H.F (v.adicCompletion H.F)) (adelic_alpha_beta_linear H)
-    first
-    | (rw [map_add (f := _), map_mul, map_ofNat, map_one] at h; exact h)
-  have hI4 : algebraMap H.F (v.adicCompletion H.F) (adelAlpha H) ^ 2
-      + algebraMap H.F (v.adicCompletion H.F) (adelAlpha H)
-        * algebraMap H.F (v.adicCompletion H.F) (adelBeta H)
-      + ((adelNd H : ℤ) : v.adicCompletion H.F) * algebraMap H.F (v.adicCompletion H.F) (adelBeta H) ^ 2
-      = ((adelNq H : ℤ) : v.adicCompletion H.F) := by
-    have h := congrArg (algebraMap H.F (v.adicCompletion H.F)) (adelic_alpha_beta_norm H)
-    first
-    | (rw [map_add (f := _), map_add (f := _), map_mul, map_mul, map_pow, map_pow, map_intCast, map_intCast] at h; exact h)
-  by_cases hdv : ((H.d : ℤ) : 𝓞 H.F) ∈ v.asIdeal
-  · have hqv : ((H.q : ℤ) : 𝓞 H.F) ∉ v.asIdeal := fun h => adel_not_both H v ⟨hdv, h⟩
-    have hc : (1 : ℤ) ^ 2 - 4 * adelNq H = -(H.q : ℤ) := by
-      have := adelNq_spec H
-      linarith
-    obtain ⟨s, t, hst⟩ := adicInt_exists_norm (K := H.F) v 1 (adelNq H) (by rw [hc]; simpa using hqv)
-    have hst' : (s : v.adicCompletion H.F) ^ 2 + (s : v.adicCompletion H.F) * (t : v.adicCompletion H.F)
-        + ((adelNq H : ℤ) : v.adicCompletion H.F) * (t : v.adicCompletion H.F) ^ 2 = -1 := by
-      have h := congrArg (fun z : v.adicCompletionIntegers H.F => (z : v.adicCompletion H.F)) hst
-      first
-      | (push_cast at h; linear_combination h)
-    refine ⟨(s : v.adicCompletion H.F)
-        + algebraMap H.F (v.adicCompletion H.F) (adelAlpha H) * (t : v.adicCompletion H.F),
-      algebraMap H.F (v.adicCompletion H.F) (adelBeta H) * (t : v.adicCompletion H.F),
-      fun h => absurd hdv h, ?_⟩
-    linear_combination hst' + ((s : v.adicCompletion H.F) * (t : v.adicCompletion H.F)) * hI3
-      + (t : v.adicCompletion H.F) ^ 2 * hI4
-  · have hc : (1 : ℤ) ^ 2 - 4 * adelNd H = -(H.d : ℤ) := by
-      have := adelNd_spec H
-      linarith
-    obtain ⟨s, t, hst⟩ := adicInt_exists_norm (K := H.F) v 1 (adelNd H) (by rw [hc]; simpa using hdv)
-    have hst' : (s : v.adicCompletion H.F) ^ 2 + (s : v.adicCompletion H.F) * (t : v.adicCompletion H.F)
-        + ((adelNd H : ℤ) : v.adicCompletion H.F) * (t : v.adicCompletion H.F) ^ 2 = -1 := by
-      have h := congrArg (fun z : v.adicCompletionIntegers H.F => (z : v.adicCompletion H.F)) hst
-      first
-      | (push_cast at h; linear_combination h)
-    refine ⟨(s : v.adicCompletion H.F), (t : v.adicCompletion H.F), fun _ => ⟨s.2, t.2⟩, ?_⟩
-    linear_combination hst'
-
 end Final
 
 section Adele
@@ -422,82 +362,6 @@ theorem adel_finite_d :
   · intro v hv
     rw [Set.mem_setOf_eq, Ideal.dvd_iff_le, Ideal.span_singleton_le_iff_mem]
     exact hv
-
-def adelSv (v : HeightOneSpectrum (𝓞 H.F)) : v.adicCompletion H.F := (adel_local H v).choose
-
-def adelTv (v : HeightOneSpectrum (𝓞 H.F)) : v.adicCompletion H.F :=
-  (adel_local H v).choose_spec.choose
-
-theorem adelSTv_spec (v : HeightOneSpectrum (𝓞 H.F)) :
-    (((H.d : ℤ) : 𝓞 H.F) ∉ v.asIdeal →
-        adelSv H v ∈ v.adicCompletionIntegers H.F ∧ adelTv H v ∈ v.adicCompletionIntegers H.F) ∧
-      adelSv H v * adelSv H v + adelSv H v * adelTv H v +
-        ((adelNd H : ℤ) : v.adicCompletion H.F) * (adelTv H v * adelTv H v) = -1 := (adel_local H v).choose_spec.choose_spec
-
-def adelS : FiniteAdeleRing (𝓞 H.F) H.F :=
-  ⟨fun v => adelSv H v, Filter.eventually_cofinite.2 ((adel_finite_d H).subset (fun v hv => by
-    by_contra h
-    exact hv ((adelSTv_spec H v).1 h).1))⟩
-
-def adelT : FiniteAdeleRing (𝓞 H.F) H.F :=
-  ⟨fun v => adelTv H v, Filter.eventually_cofinite.2 ((adel_finite_d H).subset (fun v hv => by
-    by_contra h
-    exact hv ((adelSTv_spec H v).1 h).2))⟩
-
-theorem adel_key : adelS H * adelS H + adelS H * adelT H +
-    ((adelNd H : ℤ) : FiniteAdeleRing (𝓞 H.F) H.F) * (adelT H * adelT H) = -1 := by
-  refine RestrictedProduct.ext _ _ fun v => ?_
-  have h := (adelSTv_spec H v).2
-  first
-  | (change adelSv H v * adelSv H v + adelSv H v * adelTv H v
-        + ((adelNd H : ℤ) : v.adicCompletion H.F) * (adelTv H v * adelTv H v) = -1
-     exact h)
-
-theorem adel_hom_key {A B : Type*} [CommRing A] [CommRing B] (f : A →+* B) (S T : A) (N : ℤ)
-    (h : S * S + S * T + (N : A) * (T * T) = -1) :
-    f S * f S + f S * f T + (N : B) * (f T * f T) = -1 := by
-  have h' := congrArg f h
-  simpa using h'
-
-theorem adel_alg {B : Type*} [CommRing B] (τ : B →+* B) (s t u : B) (N : ℤ)
-    (hs : τ s = s) (ht : τ t = t) (hτu : τ u = 1 - u) (hu : u * (1 - u) = N)
-    (hk : s * s + s * t + (N : B) * (t * t) = -1) : τ (s + u * t) * (s + u * t) = -1 := by
-  rw [map_add (f := _), map_mul, hs, ht, hτu]
-  linear_combination hk + t * t * hu
-
-theorem exists_adelic_neg_one (σ : H.E →ₐ[H.F] H.E) (hσ : ∀ x, σ x = H.conj x) :
-    ∃ y : H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F,
-      Formalism.UG.sigR σ (FiniteAdeleRing (𝓞 H.F) H.F) y * y = -1 := by
-  have hL : ∀ x : H.E, Formalism.UG.sigR σ (FiniteAdeleRing (𝓞 H.F) H.F)
-      ((Algebra.TensorProduct.includeLeftRingHom :
-        H.E →+* H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F) x)
-      = (Algebra.TensorProduct.includeLeftRingHom :
-        H.E →+* H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F) (σ x) := by
-    intro x
-    simp [Formalism.UG.sigR, Algebra.TensorProduct.includeLeftRingHom_apply, Algebra.TensorProduct.map_tmul]
-  have hR : ∀ a : FiniteAdeleRing (𝓞 H.F) H.F, Formalism.UG.sigR σ (FiniteAdeleRing (𝓞 H.F) H.F)
-      ((Algebra.TensorProduct.includeRight :
-        FiniteAdeleRing (𝓞 H.F) H.F →ₐ[H.F] H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F).toRingHom a)
-      = (Algebra.TensorProduct.includeRight :
-        FiniteAdeleRing (𝓞 H.F) H.F →ₐ[H.F] H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F).toRingHom a := by
-    intro a
-    simp [Formalism.UG.sigR, Algebra.TensorProduct.includeRight_apply, Algebra.TensorProduct.map_tmul]
-  have key := adel_hom_key (Algebra.TensorProduct.includeRight :
-    FiniteAdeleRing (𝓞 H.F) H.F →ₐ[H.F] H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F).toRingHom _ _ _ (adel_key H)
-  have hu : (Algebra.TensorProduct.includeLeftRingHom :
-        H.E →+* H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F) (adelTheta H)
-      * (1 - (Algebra.TensorProduct.includeLeftRingHom :
-        H.E →+* H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F) (adelTheta H))
-      = ((adelNd H : ℤ) : H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F) := by
-    rw [← map_one (Algebra.TensorProduct.includeLeftRingHom :
-        H.E →+* H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F), ← map_sub, ← map_mul, adelic_theta_mul_one_sub, map_intCast]
-  have hτu : Formalism.UG.sigR σ (FiniteAdeleRing (𝓞 H.F) H.F)
-      ((Algebra.TensorProduct.includeLeftRingHom :
-        H.E →+* H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F) (adelTheta H))
-      = 1 - (Algebra.TensorProduct.includeLeftRingHom :
-        H.E →+* H.E ⊗[H.F] FiniteAdeleRing (𝓞 H.F) H.F) (adelTheta H) := by
-    rw [hL, hσ, adelic_theta_conj, map_sub, map_one]
-  exact ⟨_, adel_alg _ _ _ _ _ (hR _) (hR _) hτu hu key⟩
 
 end Adele
 

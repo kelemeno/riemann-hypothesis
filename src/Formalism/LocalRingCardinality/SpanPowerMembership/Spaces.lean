@@ -172,57 +172,6 @@ theorem posSpace_sigOK (N : ℕ) : (posSpace hstar N).SigOK := by
   rw [Fintype.card_fin] at h
   exact h
 
-def negLast : Fin (8 + 1) → Bool := fun i => decide ((i : ℕ) = 8)
-
-theorem negLast_castAdd (i : Fin 8) : negLast (Fin.castAdd 1 i) = false := by
-  simp only [negLast, decide_eq_false_iff_not, Fin.val_castAdd]
-  exact i.isLt.ne
-
-theorem castAdd_ne_natAdd' (i : Fin 8) (j : Fin 1) : Fin.castAdd 1 i ≠ Fin.natAdd 8 j := by
-  intro h
-  have := congrArg Fin.val h
-  simp only [Fin.val_castAdd, Fin.val_natAdd] at this
-  omega
-
-theorem negLast_natAdd (i : Fin 1) : negLast (Fin.natAdd 8 i) = true := by
-  fin_cases i; rfl
-
-theorem lorentzDiagonal_hasSignature : Formalism.UG.HasSignature
-    (Matrix.diagonal fun i : Fin (8 + 1) => (sgn (negLast i) : ℂ)) 8 1 := by
-  refine ⟨(finSumFinEquiv (m := 8) (n := 1)).symm, 1, ?_⟩
-  simp only [Units.val_one, Formalism.UG.cT_one, Matrix.one_mul, Matrix.mul_one]
-  ext i j
-  rcases i with i | i <;> rcases j with j | j
-  · simp only [Formalism.UG.Jpq, Matrix.reindex_apply, Matrix.submatrix_apply, Equiv.symm_symm,
-      finSumFinEquiv_apply_left, Matrix.fromBlocks_apply₁₁, Matrix.diagonal_apply,
-      Matrix.one_apply, negLast_castAdd, (Fin.castAdd_injective 8 1).eq_iff]
-    simp [sgn]
-  · simp only [Formalism.UG.Jpq, Matrix.reindex_apply, Matrix.submatrix_apply, Equiv.symm_symm,
-      finSumFinEquiv_apply_left, finSumFinEquiv_apply_right, Matrix.fromBlocks_apply₁₂,
-      Matrix.diagonal_apply, Matrix.zero_apply]
-    rw [ite_eq_right (castAdd_ne_natAdd' i j)]
-  · simp only [Formalism.UG.Jpq, Matrix.reindex_apply, Matrix.submatrix_apply, Equiv.symm_symm,
-      finSumFinEquiv_apply_left, finSumFinEquiv_apply_right, Matrix.fromBlocks_apply₂₁,
-      Matrix.diagonal_apply, Matrix.zero_apply]
-    rw [ite_eq_right (castAdd_ne_natAdd' j i).symm]
-  · simp only [Formalism.UG.Jpq, Matrix.reindex_apply, Matrix.submatrix_apply, Equiv.symm_symm,
-      finSumFinEquiv_apply_right, Matrix.fromBlocks_apply₂₂, Matrix.diagonal_apply,
-      Matrix.neg_apply, Matrix.one_apply, negLast_natAdd, (Fin.natAdd_injective 1 8).eq_iff]
-    split_ifs <;> simp [sgn]
-
-def lorentzSpace : HSpace E := stdSpace hstar (8 + 1) negLast 8 1
-
-theorem lorentzSpace_signature_ok : (lorentzSpace hstar).SigOK := by
-  intro τ
-  have hg : (lorentzSpace hstar).gram.map τ = Matrix.diagonal fun i : Fin (8 + 1) => (sgn (negLast i) : ℂ) := by
-    ext i j
-    rw [Matrix.map_apply]
-    refine (congrArg τ (stdSpace_gram_apply hstar (8 + 1) negLast 8 1 i j)).trans ?_
-    change τ (if i = j then (sgn (negLast i) : E) else 0) = if i = j then (sgn (negLast i) : ℂ) else 0
-    by_cases h : i = j <;> simp [h, map_sgn]
-  rw [hg]
-  exact lorentzDiagonal_hasSignature
-
 end Space
 
 section Maps
@@ -239,29 +188,6 @@ theorem diagForm_single_right (N : ℕ) (neg : Fin N → Bool) (x : Fin N → E)
   rw [diagForm_apply, Finset.sum_eq_single j (fun i _ hi => by simp [hi]) (by simp)]
   simp
 
-def extZero (n : ℕ) : (Fin n → E) →ₗ[E] (Fin (n + 1) → E) where
-  toFun x := fun i => if h : (i : ℕ) < n then x ⟨i, h⟩ else 0
-  map_add' x y := by
-    funext i
-    simp only [Pi.add_apply]
-    split_ifs <;> simp
-  map_smul' c x := by
-    funext i
-    simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]
-    split_ifs <;> simp
-
-theorem extZero_castSucc (n : ℕ) (x : Fin n → E) (i : Fin n) : extZero n x (Fin.castSucc i) = x i := by
-  simp [extZero]
-
-theorem extZero_last (n : ℕ) (x : Fin n → E) : extZero n x (Fin.last n) = 0 := by
-  simp [extZero]
-
-theorem extZero_isom (n : ℕ) (neg : Fin n → Bool) (neg' : Fin (n + 1) → Bool)
-    (hneg : ∀ i, neg' (Fin.castSucc i) = neg i) (x y : Fin n → E) :
-    diagForm (n + 1) neg' (extZero n x) (extZero n y) = diagForm n neg x y := by
-  rw [diagForm_apply, diagForm_apply, Fin.sum_univ_castSucc]
-  simp [extZero_castSucc, extZero_last, hneg]
-
 end Maps
 
 section Examples₂
@@ -272,55 +198,11 @@ variable {F E : Type} [Field F] [NumberField F] [Field E] [NumberField E] [StarR
   (hy : ∃ y : E ⊗[F] FiniteAdeleRing (𝓞 F) F,
     Formalism.UG.sigR cm.sig (FiniteAdeleRing (𝓞 F) F) y * y = -1)
 
-def toyX (j : ℕ) : HSpace E := posSpace hstar (R0.N j)
-
-def exampleTargetSpace : ℕ → HSpace E
-  | 0 => lorentzSpace hstar
-  | j + 1 => posSpace hstar (R0.rankY (j + 1))
-
-def toyW : ℕ → HSpace E
-  | 1 => lorentzSpace hstar
-  | _ => posSpace hstar R0.r
-
-def exampleSpaceMap : ∀ j, (toyX hstar j).V →ₗ[E] (exampleTargetSpace hstar j).V
-  | 0 => extZero 8
-  | 1 => LinearMap.id
-  | _ + 2 => 0
-
 end Examples₂
 
 section SlopeTestRemainingChoices
 
 variable {E : Type} [Field E] [NumberField E] [StarRing E]
-
-theorem definite_last_vector_anisotropic : diagForm (E := E) (39 + 1) (fun _ => false) (Pi.single (Fin.last 39) 1)
-    (Pi.single (Fin.last 39) 1) ≠ 0 := by
-  rw [diagForm_single_left]
-  simp [sgn]
-
-theorem definite_extension_orthogonal_last (x : Fin 39 → E) :
-    diagForm (39 + 1) (fun _ => false) (extZero 39 x) (Pi.single (Fin.last 39) 1) = 0 := by
-  rw [diagForm_single_right, extZero_last]
-  simp
-
-theorem lorentz_last_vector_norm (T : ℕ) (pz : E) (hpz : star pz * pz = T) :
-    diagForm (8 + 1) negLast (Pi.single (Fin.last 8) pz) (Pi.single (Fin.last 8) pz) = -(T : E) := by
-  rw [diagForm_single_left]
-  have hn : negLast (Fin.last 8) = true := rfl
-  simp only [Pi.single_eq_same, hn, sgn, ite_true]
-  rw [← hpz]
-  ring
-
-theorem lorentz_extension_orthogonal_last (pz : E) (x : Fin 8 → E) :
-    diagForm (8 + 1) negLast (extZero 8 x) (Pi.single (Fin.last 8) pz) = 0 := by
-  rw [diagForm_single_right, extZero_last]
-  simp
-
-theorem standardLattice_orthogonal : Formalism.HermitianLatticesTheory.IsOrthoLattice (diagForm (E := E) 24 (fun _ => false)) (stdLat 24) 24 := by
-  refine ⟨Pi.basisFun E (Fin 24), (Pi.basisFun E (Fin 24)).linearIndependent,
-    (Pi.basisFun E (Fin 24)).span_eq, rfl, fun i j => ?_⟩
-  rw [Pi.basisFun_apply, Pi.basisFun_apply, diagForm_single]
-  simp [sgn]
 
 end SlopeTestRemainingChoices
 
@@ -369,49 +251,6 @@ variable {F E : Type} [Field F] [NumberField F] [Field E] [NumberField E] [StarR
   (hy : ∃ y : E ⊗[F] FiniteAdeleRing (𝓞 F) F,
     Formalism.UG.sigR cm.sig (FiniteAdeleRing (𝓞 F) F) y * y = -1)
 
-include hy in
-theorem example_baseSpace_isometric_graded : ∀ j, 1 ≤ j → j ≤ R0.m → ∃ e : Fin (exampleTargetSpace hstar 0).rank ≃ Fin (toyW hstar j).rank,
-    ∃ g : GL (Fin (toyW hstar j).rank) (E ⊗[F] FiniteAdeleRing (𝓞 F) F),
-      Formalism.UG.cT (Formalism.UG.sigR cm.sig (FiniteAdeleRing (𝓞 F) F))
-                (g : Matrix (Fin (toyW hstar j).rank) (Fin (toyW hstar j).rank) (E ⊗[F] FiniteAdeleRing (𝓞 F) F)) *
-        (((exampleTargetSpace hstar 0).gram.reindex e e).map (Formalism.UG.inclE (FiniteAdeleRing (𝓞 F) F))) *
-        (g : Matrix (Fin (toyW hstar j).rank) (Fin (toyW hstar j).rank) (E ⊗[F] FiniteAdeleRing (𝓞 F) F)) =
-      (toyW hstar j).gram.map (Formalism.UG.inclE (FiniteAdeleRing (𝓞 F) F)) := by
-  intro j h1 h2
-  have hm : R0.m = 2 := rfl
-  obtain rfl | rfl : j = 1 ∨ j = 2 := by omega
-  · refine ⟨Equiv.refl _, 1, ?_⟩
-    simp only [Units.val_one, Formalism.UG.cT_one, Matrix.one_mul, Matrix.mul_one]
-    rfl
-  · obtain ⟨y, hy⟩ := hy
-    set A := FiniteAdeleRing (𝓞 F) F
-    set σ := Formalism.UG.sigR cm.sig A
-    have hyu : y * (-(σ y)) = 1 := by rw [mul_neg, mul_comm, hy, neg_neg]
-    refine ⟨Equiv.refl _, diagUnit (n := Fin (toyW hstar 2).rank)
-      (fun i => if (i : ℕ) = 8 then y else 1) (fun i => if (i : ℕ) = 8 then -(σ y) else 1)
-      (fun i => by split_ifs <;> simp [hyu]), ?_⟩
-    ext i j
-    rw [diagUnit_val, cT_diagonal, Matrix.mul_diagonal, Matrix.diagonal_mul]
-    simp only [Matrix.map_apply]
-    refine (congrArg (fun z => σ (if (i : ℕ) = 8 then y else 1) * Formalism.UG.inclE A z *
-      (if (j : ℕ) = 8 then y else 1)) (stdSpace_gram_apply hstar (8 + 1) negLast 8 1 i j)).trans ?_
-    have e2 : (toyW hstar 2).gram i j = if i = j then (sgn false : E) else 0 :=
-      stdSpace_gram_apply hstar R0.r (fun _ => false) R0.r 0 i j
-    rw [e2]
-    by_cases hij : i = j
-    · subst hij
-      rw [ite_eq_left (show @Eq (Fin (8 + 1)) i i from rfl), ite_eq_left rfl]
-      by_cases hi : (i : ℕ) = 8
-      · have hn : negLast i = true := by simp [negLast, hi]
-        rw [hn]
-        simp only [ite_eq_left hi, sgn, ite_true, Bool.false_eq_true, ite_false, map_neg, map_one]
-        rw [mul_neg_one, neg_mul, hy, neg_neg]
-      · have hn : negLast i = false := by simp [negLast, hi]
-        rw [hn]
-        simp [hi, sgn]
-    · rw [ite_eq_right (show ¬ @Eq (Fin (8 + 1)) i j from hij), ite_eq_right hij]
-      simp
-
 end Examples₂
 
 section Examples₂
@@ -421,78 +260,6 @@ variable {F E : Type} [Field F] [NumberField F] [Field E] [NumberField E] [StarR
   (cm : CMData F E) (T : ℕ) (hT : T.Prime) (pz : E) (hpz : star pz * pz = T)
   (hy : ∃ y : E ⊗[F] FiniteAdeleRing (𝓞 F) F,
     Formalism.UG.sigR cm.sig (FiniteAdeleRing (𝓞 F) F) y * y = -1)
-
-def spacesExample : Spaces R0 F E where
-  cm := cm
-  T := T
-  T_prime := hT
-  X := toyX hstar
-  X_sig := fun j => posSpace_sigOK hstar _
-  X_rank := fun _ _ => rfl
-  X_def := fun _ _ _ => Or.inl rfl
-  X' := posSpace hstar 39
-  X'_sig := posSpace_sigOK hstar 39
-  X'_rank := rfl
-  iX' := extZero 39
-  iX'_isom := fun x y => extZero_isom 39 (fun _ => false) (fun _ => false) (fun _ => rfl) x y
-  z := Pi.single (Fin.last 39) 1
-  z_anis := definite_last_vector_anisotropic
-  z_orth := fun x => definite_extension_orthogonal_last x
-  Y := exampleTargetSpace hstar
-  Y_sig := fun j => match j with
-    | 0 => lorentzSpace_signature_ok hstar
-    | _ + 1 => posSpace_sigOK hstar _
-  Y_rank := fun j _ => match j with
-    | 0 => rfl
-    | _ + 1 => rfl
-  iXY := exampleSpaceMap hstar
-  iXY_isom := fun j hj => match j, hj with
-    | 0, _ => fun x y => extZero_isom 8 (fun _ => false) negLast (fun i => negLast_castAdd i) x y
-    | 1, _ => fun _ _ => rfl
-    | _ + 2, h => absurd h (by have : R0.m = 2 := rfl; omega)
-  eYm := LinearEquiv.refl E (Fin 39 → E)
-  eYm_isom := fun _ _ => rfl
-  zm := Pi.single (Fin.last 8) pz
-  zm_norm := lorentz_last_vector_norm T pz hpz
-  zm_orth := fun x => lorentz_extension_orthogonal_last pz x
-  hypE := fun _ => 0
-  hypF := fun _ => 0
-  hyp_ee := fun _ _ => by simp
-  hyp_ff := fun _ _ => by simp
-  hyp_ef := fun i _ => (Nat.not_lt_zero _ i.isLt).elim
-  hyp_orthX := fun _ _ => ⟨by simp, by simp⟩
-  hyp_orthz := fun _ => ⟨by simp, by simp⟩
-  baseSpace_signature_eq := fun _ => rfl
-  W := toyW hstar
-  W_sig := fun j => match j with
-    | 0 => posSpace_sigOK hstar _
-    | 1 => lorentzSpace_signature_ok hstar
-    | _ + 2 => posSpace_sigOK hstar _
-  W_rank := fun j h1 h2 => by
-    have : R0.m = 2 := rfl
-    obtain rfl | rfl : j = 1 ∨ j = 2 := by omega
-    · rfl
-    · rfl
-  W_sigval := fun j h1 h2 τ => by
-    have : R0.m = 2 := rfl
-    obtain rfl | rfl : j = 1 ∨ j = 2 := by omega
-    · rfl
-    · rfl
-  baseSpace_isometric_graded := example_baseSpace_isometric_graded hstar cm hy
-  V := fun _ => posSpace hstar R0.nV
-  V_sig := fun _ => posSpace_sigOK hstar _
-  V_rank := fun _ _ _ => rfl
-  Vneg := fun _ => false
-  V_std := fun _ _ _ => standardLattice_orthogonal
-
-theorem spacesExample_Ysig : ∀ j, j ≤ R0.m → ∀ τ : E →+* ℂ,
-    ((spacesExample hstar cm T hT pz hpz hy).Y j).sig τ = sigYD R0 j := by
-  intro j hj τ
-  have : R0.m = 2 := rfl
-  obtain rfl | rfl | rfl : j = 0 ∨ j = 1 ∨ j = 2 := by omega
-  · rfl
-  · rfl
-  · rfl
 
 end Examples₂
 
